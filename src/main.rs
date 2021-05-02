@@ -38,6 +38,9 @@ async fn run() -> Result<()> {
     let mut e_state = state::State::new(size.width, size.height);
 
     let mut last_t = std::time::Instant::now();
+    let mut last_fps = std::time::Instant::now();
+
+    let mut deltas = Vec::new();
 
     e_loop.run(move |ev, _elwt, cf| match ev {
         Event::WindowEvent {
@@ -80,8 +83,19 @@ async fn run() -> Result<()> {
         Event::RedrawRequested(window_id) if window_id == win.id() => {
             let now = std::time::Instant::now();
             let dt = now - last_t;
+            deltas.push(dt.as_secs_f64());
             e_state.step(dt.as_secs_f64());
             last_t = now;
+
+            if (now - last_fps) > std::time::Duration::from_secs(1) {
+                last_fps = now;
+                // unwrap is safe because we just pushed (assume no NaN or whatever)
+                let max_delta = deltas.iter().cloned().fold(0., f64::max);
+                let avg_delta = deltas.iter().cloned().sum::<f64>() / deltas.len() as f64;
+                let min_delta = deltas.iter().cloned().fold(1./0., f64::min);
+                deltas.clear();
+                info!("FPS: {:.4}/{:.4}/{:.4}", 1.0/max_delta, 1.0/avg_delta, 1.0/min_delta);
+            }
 
             match render.render(&e_state.get_rs()) {
                 Ok(()) => {}
