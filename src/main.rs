@@ -5,7 +5,7 @@ use anyhow::Result;
 
 use winit::{
     dpi::LogicalSize,
-    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent, ElementState},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -14,6 +14,9 @@ use futures::executor::block_on;
 
 mod render;
 mod state;
+mod easing;
+
+use easing::Easing;
 
 fn main() {
     if let Err(e) = block_on(run()) {
@@ -35,12 +38,14 @@ async fn run() -> Result<()> {
     let mut render = render::Render::new(&win).await?;
 
     let size = win.inner_size();
-    let mut e_state = state::State::new(size.width, size.height);
+    let mut e_state = state::State::<easing::SinEasing>::new(size.width, size.height);
 
     let mut last_t = std::time::Instant::now();
     let mut last_fps = std::time::Instant::now();
 
     let mut deltas = Vec::new();
+
+    let mut section_state = 0; // 0 = hidden, 1 = half, 2 = max
 
     e_loop.run(move |ev, _elwt, cf| match ev {
         Event::WindowEvent {
@@ -60,10 +65,52 @@ async fn run() -> Result<()> {
             } => {
                 *cf = ControlFlow::Exit;
             }
-            WindowEvent::CursorMoved {
-                position, ..
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(VirtualKeyCode::Tab),
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
             } => {
-                e_state.section_height = 1. - position.y / e_state.size.1 as f64;
+                match section_state {
+                    0 => {
+                        section_state = 1;
+                        e_state.easing.set_goal(0.5);
+                    }
+                    1 => {
+                        section_state = 2;
+                        e_state.easing.set_goal(1.);
+                    }
+                    2 => {
+                        section_state = 0;
+                        e_state.easing.set_goal(0.);
+                    }
+                    _ => panic!("beans")
+                }
+            }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(VirtualKeyCode::Caret),
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => {
+                info!("State: {:?}", e_state);
+            }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(k),
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => {
+                info!("Pressed {:?}", k);
             }
             WindowEvent::Resized(new_size)
             | WindowEvent::ScaleFactorChanged {
