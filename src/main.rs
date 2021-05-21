@@ -18,10 +18,8 @@ mod easing;
 
 use easing::Easing;
 
-fn main() {
-    if let Err(e) = block_on(run()) {
-        eprintln!("Error: {:#?}", e);
-    }
+fn main() -> Result<()> {
+    block_on(run())
 }
 
 async fn run() -> Result<()> {
