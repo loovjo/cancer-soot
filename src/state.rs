@@ -2,12 +2,18 @@ use crate::easing;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct RenderState {
+pub struct ScreenLayout {
     width: u32,
     height: u32,
 
     t: f32,
     section_height: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct RenderState {
+    pub screen_layout: ScreenLayout,
+    pub render_data: [[f32; 256]; 256],
 }
 
 #[derive(Debug, Clone)]
@@ -32,14 +38,24 @@ impl <E: easing::Easing> State<E> {
         self.easing.step(dt);
     }
 
-    pub fn get_rs(&self) -> RenderState {
+    pub fn get_layout(&self) -> ScreenLayout {
         let (width, height) = self.size;
-        RenderState {
+        ScreenLayout {
             width, height,
             t: self.t as f32,
             section_height: self.easing.get() as f32,
         }
     }
+
+    pub fn get_render_state(&self) -> RenderState {
+        let screen_layout = self.get_layout();
+        let render_data = self.get_render_data();
+        RenderState {
+            screen_layout,
+            render_data,
+        }
+    }
+
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.size.0 = new_size.width;
         self.size.1 = new_size.height;

@@ -144,7 +144,8 @@ async fn run() -> Result<()> {
                 info!("FPS: {:.4}/{:.4}/{:.4}", 1.0/max_delta, 1.0/avg_delta, 1.0/min_delta);
             }
 
-            match render.render(&e_state.get_rs()) {
+
+            match render.render(&e_state.get_render_state()) {
                 Ok(()) => {}
                 Err(wgpu::SwapChainError::Lost) => {
                     render.resize(render.size);

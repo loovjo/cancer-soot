@@ -19,8 +19,8 @@ pub struct Render {
 
     render_pipeline: wgpu::RenderPipeline,
 
-    render_state_buffer: wgpu::Buffer,
-    render_state_bind_group: wgpu::BindGroup,
+    screen_layout_buffer: wgpu::Buffer,
+    screen_layout_bind_group: wgpu::BindGroup,
 }
 
 impl Render {
@@ -92,14 +92,14 @@ impl Render {
             },
         };
 
-        let render_state_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let screen_layout_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Render state buffer"),
-            size: std::mem::size_of::<crate::state::RenderState>() as u64,
+            size: std::mem::size_of::<crate::state::ScreenLayout>() as u64,
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let render_state_bind_group_layout =
+        let screen_layout_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Render state bind group layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -114,19 +114,19 @@ impl Render {
                 }],
             });
 
-        let render_state_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let screen_layout_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Render state bind group"),
-            layout: &render_state_bind_group_layout,
+            layout: &screen_layout_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: render_state_buffer.as_entire_binding(),
+                resource: screen_layout_buffer.as_entire_binding(),
             }],
         });
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render pipeline layout"),
-                bind_group_layouts: &[&render_state_bind_group_layout],
+                bind_group_layouts: &[&screen_layout_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -175,8 +175,8 @@ impl Render {
 
             render_pipeline,
 
-            render_state_bind_group,
-            render_state_buffer,
+            screen_layout_bind_group,
+            screen_layout_buffer,
         })
     }
 
@@ -188,7 +188,7 @@ impl Render {
     }
 
     pub fn render(&mut self, render_state: &crate::state::RenderState) -> std::result::Result<(), wgpu::SwapChainError> {
-        self.queue.write_buffer(&self.render_state_buffer, 0, bytemuck::cast_slice::<_, u8>(&[*render_state]));
+        self.queue.write_buffer(&self.screen_layout_buffer, 0, bytemuck::cast_slice::<_, u8>(&[render_state.screen_layout]));
 
         let frame = self.swap_chain.get_current_frame()?.output;
 
@@ -217,7 +217,7 @@ impl Render {
                 depth_stencil_attachment: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.render_state_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.screen_layout_bind_group, &[]);
             render_pass.draw(0..6, 0..1);
         }
         self.queue.submit(vec![encoder.finish()]);
