@@ -8,8 +8,6 @@ use anyhow::Result;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
-use wgpu::util::DeviceExt;
-
 pub struct Render {
     pub size: PhysicalSize<u32>,
 
@@ -39,7 +37,7 @@ impl Render {
             .await
             .ok_or(anyhow!("Could not find adapter!"))?;
 
-        debug!("Got adapter: {:?}", adapter);
+        info!("Got adapter: {:?}", adapter);
 
         let (device, queue) = adapter
             .request_device(
@@ -52,7 +50,7 @@ impl Render {
             )
             .await?;
 
-        debug!("Got device + queue: {:?} + {:?}", device, queue);
+        info!("Got device + queue: {:?} + {:?}", device, queue);
 
         let size = win.inner_size();
         let sc_desc = wgpu::SwapChainDescriptor {
@@ -70,7 +68,7 @@ impl Render {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        debug!("Created swap chain {:?}", swap_chain);
+        info!("Created swap chain {:?}", swap_chain);
 
         let vs_desc: wgpu::ShaderModuleDescriptor =
             wgpu::include_spirv!("shaders/compiled/section.vert.spv");
@@ -94,10 +92,11 @@ impl Render {
             },
         };
 
-        let render_state_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let render_state_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Render state buffer"),
-            contents: &[0u8; std::mem::size_of::<crate::state::RenderState>()],
+            size: std::mem::size_of::<crate::state::RenderState>() as u64,
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let render_state_bind_group_layout =
