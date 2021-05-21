@@ -153,6 +153,24 @@ impl Render {
                 label: Some("Render encoder"),
             });
 
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render pass"),
+            color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: &frame.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.,
+                        g: 0.,
+                        b: 0.,
+                        a: 1.0,
+                    }),
+                    store: true,
+                },
+            }],
+            depth_stencil_attachment: None,
+        });
+
         self.data_render.render(&mut encoder, &mut self.queue, &frame, &self.screen_layout_bind_group, &render_state.render_data);
         self.menu_render.render(&mut encoder, &frame, &self.screen_layout_bind_group);
 
