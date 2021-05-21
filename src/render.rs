@@ -8,6 +8,104 @@ use anyhow::Result;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+struct MenuRender {
+    render_pipeline: wgpu::RenderPipeline,
+}
+
+impl MenuRender {
+    pub async fn new(device: &wgpu::Device, screen_layout_bind_group_layout: &wgpu::BindGroupLayout, format: wgpu::TextureFormat) -> Result<Self> {
+        let vs_desc: wgpu::ShaderModuleDescriptor =
+            wgpu::include_spirv!("shaders/compiled/section.vert.spv");
+
+        let fs_desc: wgpu::ShaderModuleDescriptor =
+            wgpu::include_spirv!("shaders/compiled/section.frag.spv");
+
+        let vs_mod = device.create_shader_module(&vs_desc);
+        let fs_mod = device.create_shader_module(&fs_desc);
+
+        let blending = wgpu::BlendState {
+            color: wgpu::BlendComponent {
+                src_factor: wgpu::BlendFactor::SrcAlpha,
+                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                operation: wgpu::BlendOperation::Add,
+            },
+            alpha: wgpu::BlendComponent {
+                src_factor: wgpu::BlendFactor::SrcAlpha,
+                dst_factor: wgpu::BlendFactor::Zero,
+                operation: wgpu::BlendOperation::Add,
+            },
+        };
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render pipeline layout"),
+                bind_group_layouts: &[screen_layout_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &vs_mod,
+                entry_point: "main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &fs_mod,
+                entry_point: "main",
+                targets: &[wgpu::ColorTargetState {
+                    blend: Some(blending),
+                    format: format,
+                    write_mask: wgpu::ColorWrite::ALL,
+                }],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Cw,
+                cull_mode: Some(wgpu::Face::Front),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                clamp_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !1,
+                alpha_to_coverage_enabled: false,
+            },
+        });
+
+        Ok(MenuRender {
+            render_pipeline,
+        })
+    }
+
+    fn render(&mut self, encoder: &mut wgpu::CommandEncoder, frame: &wgpu::SwapChainTexture, screen_layout_bind_group: &wgpu::BindGroup) {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render pass"),
+            color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: &frame.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.,
+                        g: 0.,
+                        b: 0.,
+                        a: 1.0,
+                    }),
+                    store: true,
+                },
+            }],
+            depth_stencil_attachment: None,
+        });
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_bind_group(0, screen_layout_bind_group, &[]);
+        render_pass.draw(0..6, 0..1);
+    }
+}
+
 pub struct Render {
     pub size: PhysicalSize<u32>,
 
@@ -17,10 +115,10 @@ pub struct Render {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
 
-    render_pipeline: wgpu::RenderPipeline,
-
     screen_layout_buffer: wgpu::Buffer,
     screen_layout_bind_group: wgpu::BindGroup,
+
+    menu_render: MenuRender,
 }
 
 impl Render {
@@ -38,7 +136,6 @@ impl Render {
             .ok_or(anyhow!("Could not find adapter!"))?;
 
         info!("Got adapter: {:?}", adapter);
-
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -70,28 +167,28 @@ impl Render {
 
         info!("Created swap chain {:?}", swap_chain);
 
-        let vs_desc: wgpu::ShaderModuleDescriptor =
-            wgpu::include_spirv!("shaders/compiled/section.vert.spv");
 
-        let fs_desc: wgpu::ShaderModuleDescriptor =
-            wgpu::include_spirv!("shaders/compiled/section.frag.spv");
+        let (screen_layout_buffer, screen_layout_bind_group, screen_layout_bind_group_layout) = Self::create_screen_layout(&device).await;
 
-        let vs_mod = device.create_shader_module(&vs_desc);
-        let fs_mod = device.create_shader_module(&fs_desc);
+        let menu_render = MenuRender::new(&device, &screen_layout_bind_group_layout, sc_desc.format).await?;
 
-        let blending = wgpu::BlendState {
-            color: wgpu::BlendComponent {
-                src_factor: wgpu::BlendFactor::SrcAlpha,
-                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                operation: wgpu::BlendOperation::Add,
-            },
-            alpha: wgpu::BlendComponent {
-                src_factor: wgpu::BlendFactor::SrcAlpha,
-                dst_factor: wgpu::BlendFactor::Zero,
-                operation: wgpu::BlendOperation::Add,
-            },
-        };
+        Ok(Render {
+            surface,
+            device,
+            queue,
 
+            sc_desc,
+            swap_chain,
+            size,
+
+            screen_layout_bind_group,
+            screen_layout_buffer,
+
+            menu_render,
+        })
+    }
+
+    async fn create_screen_layout(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::BindGroup, wgpu::BindGroupLayout) {
         let screen_layout_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Render state buffer"),
             size: std::mem::size_of::<crate::state::ScreenLayout>() as u64,
@@ -123,61 +220,7 @@ impl Render {
             }],
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render pipeline layout"),
-                bind_group_layouts: &[&screen_layout_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &vs_mod,
-                entry_point: "main",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &fs_mod,
-                entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
-                    blend: Some(blending),
-                    format: sc_desc.format,
-                    write_mask: wgpu::ColorWrite::ALL,
-                }],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: Some(wgpu::Face::Front),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                clamp_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !1,
-                alpha_to_coverage_enabled: false,
-            },
-        });
-
-        Ok(Render {
-            surface,
-            device,
-            queue,
-
-            sc_desc,
-            swap_chain,
-            size,
-
-            render_pipeline,
-
-            screen_layout_bind_group,
-            screen_layout_buffer,
-        })
+        (screen_layout_buffer, screen_layout_bind_group, screen_layout_bind_group_layout)
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
@@ -198,28 +241,7 @@ impl Render {
                 label: Some("Render encoder"),
             });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
-                    view: &frame.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.,
-                            g: 0.,
-                            b: 0.,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: None,
-            });
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.screen_layout_bind_group, &[]);
-            render_pass.draw(0..6, 0..1);
-        }
+        self.menu_render.render(&mut encoder, &frame, &self.screen_layout_bind_group);
         self.queue.submit(vec![encoder.finish()]);
 
         Ok(())
