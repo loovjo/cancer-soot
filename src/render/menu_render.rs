@@ -33,13 +33,14 @@ impl MenuRender {
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render pipeline layout"),
+                label: Some("Menu render pipeline layout"),
                 bind_group_layouts: &[screen_layout_bind_group_layout],
                 push_constant_ranges: &[],
-            });
+            }
+        );
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render pipeline"),
+            label: Some("Menu render pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vs_mod,

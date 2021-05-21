@@ -11,6 +11,10 @@ use winit::window::Window;
 mod menu_render;
 use menu_render::MenuRender;
 
+mod data_render;
+use data_render::DataRender;
+
+
 pub struct Render {
     pub size: PhysicalSize<u32>,
 
@@ -24,6 +28,8 @@ pub struct Render {
     screen_layout_bind_group: wgpu::BindGroup,
 
     menu_render: MenuRender,
+
+    data_render: DataRender,
 }
 
 impl Render {
@@ -40,7 +46,6 @@ impl Render {
             .await
             .ok_or(anyhow!("Could not find adapter!"))?;
 
-        info!("Got adapter: {:?}", adapter);
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -76,6 +81,7 @@ impl Render {
         let (screen_layout_buffer, screen_layout_bind_group, screen_layout_bind_group_layout) = Self::create_screen_layout(&device).await;
 
         let menu_render = MenuRender::new(&device, &screen_layout_bind_group_layout, sc_desc.format).await?;
+        let data_render = DataRender::new(&device, &screen_layout_bind_group_layout, sc_desc.format).await?;
 
         Ok(Render {
             surface,
@@ -90,6 +96,7 @@ impl Render {
             screen_layout_buffer,
 
             menu_render,
+            data_render,
         })
     }
 
@@ -146,7 +153,9 @@ impl Render {
                 label: Some("Render encoder"),
             });
 
+        self.data_render.render(&mut encoder, &mut self.queue, &frame, &self.screen_layout_bind_group, &render_state.render_data);
         self.menu_render.render(&mut encoder, &frame, &self.screen_layout_bind_group);
+
         self.queue.submit(vec![encoder.finish()]);
 
         Ok(())
