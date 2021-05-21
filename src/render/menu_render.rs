@@ -10,10 +10,10 @@ pub(super) struct MenuRender {
 impl MenuRender {
     pub(super) async fn new(device: &wgpu::Device, screen_layout_bind_group_layout: &wgpu::BindGroupLayout, format: wgpu::TextureFormat) -> Result<Self> {
         let vs_desc: wgpu::ShaderModuleDescriptor =
-            wgpu::include_spirv!("shaders/compiled/section.vert.spv");
+            wgpu::include_spirv!("shaders/compiled/menu.vert.spv");
 
         let fs_desc: wgpu::ShaderModuleDescriptor =
-            wgpu::include_spirv!("shaders/compiled/section.frag.spv");
+            wgpu::include_spirv!("shaders/compiled/menu.frag.spv");
 
         let vs_mod = device.create_shader_module(&vs_desc);
         let fs_mod = device.create_shader_module(&fs_desc);
