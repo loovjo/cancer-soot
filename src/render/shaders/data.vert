@@ -11,10 +11,10 @@ layout(set=0, binding=0) uniform RenderState {
 const int i2j[6] = {0, 1, 2, 2, 3, 0};
 
 const vec2 positions[4] = vec2[4](
-    vec2(-0.4, 0.1),
-    vec2(0.4, 0.1),
-    vec2(0.4, 0.9),
-    vec2(-0.4, 0.9)
+    vec2(-0.7, -0.6),
+    vec2(0.7, -0.6),
+    vec2(0.7, 0.8),
+    vec2(-0.7, 0.8)
 );
 
 const vec2 uvs[4] = vec2[4](
@@ -31,6 +31,6 @@ void main() {
     int j = i2j[gl_VertexIndex];
 
     gl_Position = vec4(positions[j], 0.0, 1.0);
-    uv = uvs[j] * 1.2 - 0.1;
+    uv = uvs[j];
 }
 
