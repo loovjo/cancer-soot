@@ -62,7 +62,7 @@ impl <E: easing::Easing> State<E> {
     }
 
     pub fn get_render_data(&self) -> [[f32; 256]; 256] {
-        const DATA: &[u8] = include_bytes!("../target/release/cancer-soot");
+        const DATA: &[u8] = include_bytes!("render/mod.rs");
 
         let mut out = [[0.0; 256]; 256];
 
