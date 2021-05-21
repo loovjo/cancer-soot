@@ -22,7 +22,7 @@ fn main() {
 }
 
 async fn run() -> Result<()> {
-    env_logger::init();
+    pretty_env_logger::init();
     let e_loop = EventLoop::new();
 
     let win = WindowBuilder::new()
