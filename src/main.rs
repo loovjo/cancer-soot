@@ -20,6 +20,10 @@ mod laz;
 use easing::Easing;
 
 fn main() -> Result<()> {
+    let (mut env, sum_id) = laz::example_env();
+
+    println!("{:?}", env.evaluate_node(sum_id));
+
     block_on(run())
 }
 
