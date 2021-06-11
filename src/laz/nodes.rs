@@ -12,6 +12,7 @@ pub struct OutputID { pub node: ID, pub outport: usize }
 #[derive(Clone, Copy, Hash, Debug)]
 pub struct InputID { pub node: ID, pub inport: usize }
 
+#[derive(Clone, Debug)]
 pub enum LazError {
     InvalidInputType { from: OutputID, expected: String },
     NoSuchNode(ID),
@@ -39,7 +40,7 @@ pub trait LazNode {
 }
 
 pub struct ConstantNode {
-    value: LazValue,
+    pub value: LazValue,
 }
 
 impl LazNode for ConstantNode {
@@ -64,8 +65,17 @@ impl LazNode for ConstantNode {
 }
 
 pub struct ReadFileNode {
-    file_name: OutputID,
+    pub file_name: OutputID,
     file_cache: Option<(PathBuf, Box<[u8]>)>,
+}
+
+impl ReadFileNode {
+    pub fn new(file_name: OutputID) -> ReadFileNode {
+        ReadFileNode {
+            file_name,
+            file_cache: None,
+        }
+    }
 }
 
 impl LazNode for ReadFileNode {
@@ -108,7 +118,7 @@ impl LazNode for ReadFileNode {
 }
 
 pub struct SumNode {
-    input_list: OutputID,
+    pub input_list: OutputID,
 }
 
 impl LazNode for SumNode {
@@ -137,7 +147,7 @@ impl LazNode for SumNode {
         let sum_bytes: Option<u8> =
                 data.iter()
                 .map(|x| if let LazValue::Byte(b) = x { Some(b) } else { None } )
-                .fold(Some(0u8), |acc, b| Some(acc? + b?));
+                .fold(Some(0u8), |acc, b| Some(acc?.overflowing_add(*b?).0));
         if let Some(sum) = sum_bytes {
             return Ok(vec![LazValue::Byte(sum)]);
         }

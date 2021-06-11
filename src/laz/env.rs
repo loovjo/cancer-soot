@@ -14,16 +14,19 @@ pub struct LazEnv {
 }
 
 impl LazEnv {
-    fn add_node(&mut self, node: Box<dyn LazNode>) {
-        self.nodes.insert(self.smallest_unused_id.clone(), node);
+    pub fn add_node(&mut self, node: Box<dyn LazNode>) -> ID {
+        let id = self.smallest_unused_id.clone();
+        self.nodes.insert(id, node);
         self.smallest_unused_id.0 += 1;
+
+        id
     }
 
-    fn get_node(&self, id: ID) -> Option<&dyn LazNode> {
+    pub fn get_node(&self, id: ID) -> Option<&dyn LazNode> {
         self.nodes.get(&id).map(|x| x.as_ref())
     }
 
-    fn get_node_mut(&mut self, id: ID) -> Option<&mut (dyn LazNode + 'static)> {
+    pub fn get_node_mut(&mut self, id: ID) -> Option<&mut (dyn LazNode + 'static)> {
         self.nodes.get_mut(&id).map(|x| x.as_mut())
     }
 
@@ -34,7 +37,7 @@ impl LazEnv {
         )
     }
 
-    fn evaluate_node(&mut self, id: ID) -> Result<Vec<LazValue>, LazError> {
+    pub fn evaluate_node(&mut self, id: ID) -> Result<Vec<LazValue>, LazError> {
         let input_refs = self.nodes.get(&id).ok_or(LazError::NoSuchNode(id))?.inputs();
         // We need to clone each element because the recursive evaluate_node call might modify this
         // node's input refs
