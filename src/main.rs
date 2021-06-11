@@ -15,6 +15,7 @@ use futures::executor::block_on;
 mod render;
 mod state;
 mod easing;
+mod laz;
 
 use easing::Easing;
 
